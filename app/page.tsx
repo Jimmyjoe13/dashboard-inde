@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useChatbot } from '../context/ChatbotContext';
 
 interface Appointment {
   id: string;
@@ -10,7 +11,7 @@ interface Appointment {
   appointmentDate: string;
   appointmentTime: string;
   campaignName: string;
-  companyName?: string;
+  companyName?: string; // Nouvelle colonne
   appointmentPhase: string;
   transactionPhase: string;
   price: string;
@@ -24,6 +25,11 @@ export default function Home() {
   const [groupedAppointments, setGroupedAppointments] = useState<GroupedAppointments>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { openChatbotWithAppointment } = useChatbot();
+
+  const handleAppointmentClick = (appointment: Appointment) => {
+    openChatbotWithAppointment(appointment);
+  };
 
   useEffect(() => {
     const fetchAppointments = async () => {
@@ -60,7 +66,7 @@ export default function Home() {
               case 'datedurdv': obj.appointmentDate = row[index]; break;
               case 'heuredurdv': obj.appointmentTime = row[index]; break;
               case 'nomdelacampange': obj.campaignName = row[index]; break;
-              case 'nomdelentreprise': obj.companyName = row[index]; break;
+              case 'nomdelentreprise': obj.companyName = row[index]; break; // Nouvelle colonne
               case 'phasedurdv': obj.appointmentPhase = row[index]; break;
               case 'phasedelatransaction': obj.transactionPhase = row[index]; break;
               case 'prixttc': obj.price = row[index]; break;
@@ -141,10 +147,15 @@ export default function Home() {
               <h3 className="text-2xl font-bold mb-4 text-primary-600">{salesName}</h3>
               <div className="space-y-4">
                 {appointments.map((app, index) => (
-                  <div key={index} className="border-b border-gray-100 pb-4 last:border-b-0 last:pb-0">
+                  <div
+                    key={index}
+                    className="border-b border-gray-100 pb-4 last:border-b-0 last:pb-0 cursor-pointer hover:bg-gray-50 transition-colors duration-200"
+                    onClick={() => handleAppointmentClick(app)}
+                  >
                     <p className="text-lg font-semibold text-gray-800">
                       {app.appointmentTime ? `${app.appointmentTime} - ` : ''} {app.contact}
                     </p>
+                    {app.companyName && <p className="text-md font-medium text-gray-700">Entreprise: {app.companyName}</p>}
                     <p className="text-sm text-gray-600">Phase: {app.appointmentPhase}</p>
                     {app.campaignName && <p className="text-xs text-gray-500">Campagne: {app.campaignName}</p>}
                   </div>

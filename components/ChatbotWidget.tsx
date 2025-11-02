@@ -1,17 +1,81 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-export default function ChatbotWidget() {
-  const [isOpen, setIsOpen] = useState(false);
+interface AppointmentContext {
+  id: string;
+  leadDate: string;
+  sales: string;
+  contact: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  campaignName: string;
+  companyName?: string; // Nouvelle colonne
+  appointmentPhase: string;
+  transactionPhase: string;
+  price: string;
+}
+
+interface ChatbotWidgetProps {
+  isOpen: boolean;
+  onClose: () => void;
+  initialAppointmentContext: AppointmentContext | null;
+  onChatStarted: (context: AppointmentContext) => void;
+  onOpenWithoutContext: () => void; // Nouvelle prop
+}
+
+export default function ChatbotWidget({ isOpen, onClose, initialAppointmentContext, onChatStarted, onOpenWithoutContext }: ChatbotWidgetProps) {
   const [message, setMessage] = useState('');
   const [chatHistory, setChatHistory] = useState<{ sender: string; text: string }[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const toggleChat = () => {
-    setIsOpen(!isOpen);
+  // Effet pour gérer l'ouverture/fermeture et l'initialisation avec le contexte
+  useEffect(() => {
+    if (isOpen && initialAppointmentContext && chatHistory.length === 0) {
+      // Envoyer le contexte au webhook dès l'ouverture si un contexte est fourni
+      const initialMessage = `Bonjour, je souhaite des informations sur le rendez-vous du ${initialAppointmentContext.appointmentDate} avec ${initialAppointmentContext.contact}${initialAppointmentContext.companyName ? ` (Entreprise: ${initialAppointmentContext.companyName})` : ''}.`;
+      setChatHistory([{ sender: 'user', text: initialMessage }]);
+      onChatStarted(initialAppointmentContext); // Notifier le parent que le chat a démarré avec contexte
+      sendContextToWebhook(initialMessage, initialAppointmentContext);
+    } else if (!isOpen) {
+      // Réinitialiser l'historique quand le chat est fermé
+      setChatHistory([]);
+      setMessage('');
+      setError(null);
+    }
+  }, [isOpen, initialAppointmentContext]);
+
+
+  const sendContextToWebhook = async (initialMessage: string, context: AppointmentContext) => {
+    setIsSending(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/chatbot-webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: initialMessage, appointmentContext: context }),
+      });
+
+      const apiResponse = await response.json();
+      if (!response.ok) {
+        throw new Error(`Erreur lors de l'envoi du message: ${apiResponse.message || response.statusText}`);
+      }
+
+      const chatbotResponseText = apiResponse.n8nResponse?.output || "Aucune réponse du chatbot.";
+      setChatHistory((prev) => [...prev, { sender: 'system', text: chatbotResponseText }]);
+
+    } catch (err: unknown) {
+      console.error("Erreur d'envoi du message initial:", err);
+      setError("Impossible d'envoyer le message initial.");
+      setChatHistory((prev) => [...prev, { sender: 'system', text: "Erreur: Impossible d'envoyer le message initial." }]);
+    } finally {
+      setIsSending(false);
+    }
   };
+
 
   const handleSendMessage = async () => {
     if (message.trim() === '') return;
@@ -28,7 +92,7 @@ export default function ChatbotWidget() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: message.trim() }),
+        body: JSON.stringify({ message: message.trim(), appointmentContext: initialAppointmentContext }), // Inclure le contexte du RDV
       });
 
       const apiResponse = await response.json();
@@ -39,7 +103,7 @@ export default function ChatbotWidget() {
       const chatbotResponseText = apiResponse.n8nResponse?.output || "Aucune réponse du chatbot.";
       setChatHistory((prev) => [...prev, { sender: 'system', text: chatbotResponseText }]);
 
-    } catch (err: Error) {
+    } catch (err: unknown) {
       console.error("Erreur d'envoi du message:", err);
       setError("Impossible d'envoyer le message.");
       setChatHistory((prev) => [...prev, { sender: 'system', text: "Erreur: Impossible d'envoyer le message." }]);
@@ -54,7 +118,7 @@ export default function ChatbotWidget() {
         <div className="bg-white shadow-lg rounded-lg w-80 h-96 flex flex-col border border-gray-200">
           <div className="bg-blue-600 text-white p-3 rounded-t-lg flex justify-between items-center">
             <h3 className="font-bold">Chatbot Media Start</h3>
-            <button onClick={toggleChat} className="text-white text-xl leading-none">
+            <button onClick={onClose} className="text-white text-xl leading-none">
               &times;
             </button>
           </div>
@@ -112,7 +176,7 @@ export default function ChatbotWidget() {
       )}
       {!isOpen && (
         <button
-          onClick={toggleChat}
+          onClick={onOpenWithoutContext} // Utiliser la nouvelle prop pour ouvrir sans contexte
           className="bg-blue-600 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <svg

@@ -5,7 +5,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  const { message } = req.body;
+  const { message, appointmentContext } = req.body;
 
   if (!message) {
     return res.status(400).json({ message: 'Message is required' });
@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ text: message }), // n8n s'attend souvent à un champ 'text' ou 'body'
+      body: JSON.stringify({ text: message, appointmentContext }), // Inclure le contexte du RDV
     });
 
     if (!response.ok) {
