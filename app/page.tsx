@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useChatbot } from '../context/ChatbotContext';
+import { useSession, signOut } from "next-auth/react";
 
 // Icônes SVG pour une meilleure lisibilité
 const CalendarIcon = () => (
@@ -142,6 +143,8 @@ export default function Home() {
     }
   };
 
+  const { data: session } = useSession();
+
   const todayFormatted = new Date().toLocaleDateString('fr-FR', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   });
@@ -165,10 +168,21 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-100 text-gray-900 p-4 sm:p-8 font-sans">
       <div className="max-w-7xl mx-auto">
-        <header className="text-center mb-10 pt-4">
+        <header className="text-center mb-10 pt-4 flex justify-between items-center">
           <h1 className="text-5xl font-extrabold text-primary-700 mb-2">
             Dashboard des Rendez-vous Sales
           </h1>
+          {session && (
+            <div className="flex items-center space-x-4">
+              <p className="text-gray-700">Connecté en tant que <span className="font-semibold">{session.user?.name || session.user?.email}</span></p>
+              <button
+                onClick={() => signOut({ callbackUrl: "/auth/signin" })}
+                className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition-colors"
+              >
+                Déconnexion
+              </button>
+            </div>
+          )}
           <p className="text-xl text-gray-600">
             Rendez-vous du <span className="font-bold text-primary-600">{todayFormatted}</span>
           </p>
